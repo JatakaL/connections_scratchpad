@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connections Puzzle Solver</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .input-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .word-input {
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .word-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .puzzle-area {
+            display: none;
+        }
+
+        .puzzle-area.active {
+            display: block;
+        }
+
+        .word-pool {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            min-height: 120px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .pool-title {
+            font-size: 14px;
+            color: #718096;
+            margin-bottom: 15px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .words-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-height: 60px;
+        }
+
+        .word-card {
+            background: linear-gradient(145deg, #f7fafc, #edf2f7);
+            border: 2px solid #cbd5e0;
+            padding: 12px 18px;
+            border-radius: 12px;
+            cursor: grab;
+            user-select: none;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .word-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            background: linear-gradient(145deg, #ffffff, #f7fafc);
+        }
+
+        .word-card.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+            transform: rotate(5deg);
+        }
+
+        .groups-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .groups-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .group-box {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            min-height: 150px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .group-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #e2e8f0;
+            transition: background 0.3s;
+        }
+
+        .group-box.yellow::before { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+        .group-box.green::before { background: linear-gradient(90deg, #34d399, #10b981); }
+        .group-box.blue::before { background: linear-gradient(90deg, #60a5fa, #3b82f6); }
+        .group-box.purple::before { background: linear-gradient(90deg, #c084fc, #a855f7); }
+
+        .group-box.locked {
+            background: #f8f9fa;
+            opacity: 0.7;
+        }
+
+        .group-box.locked .word-card {
+            cursor: not-allowed;
+            background: #e9ecef;
+        }
+
+        .group-box.dragover {
+            background: #f0f4f8;
+            border: 2px dashed #667eea;
+        }
+
+        .group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .group-title {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 16px;
+        }
+
+        .group-controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .color-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .color-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .color-btn.active {
+            border-color: #2d3748;
+            box-shadow: 0 0 0 2px rgba(45, 55, 72, 0.1);
+        }
+
+        .color-btn.yellow { background: #fbbf24; }
+        .color-btn.green { background: #34d399; }
+        .color-btn.blue { background: #60a5fa; }
+        .color-btn.purple { background: #c084fc; }
+
+        .lock-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .lock-btn:hover {
+            background: #059669;
+        }
+
+        .lock-btn.locked {
+            background: #ef4444;
+        }
+
+        .lock-btn.locked:hover {
+            background: #dc2626;
+        }
+
+        .extra-groups {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .extra-group {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 15px;
+            min-height: 100px;
+            border: 2px dashed #cbd5e0;
+        }
+
+        .extra-group .group-title {
+            font-size: 14px;
+            color: #718096;
+            margin-bottom: 15px;
+        }
+
+        .controls {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        #clearAll {
+            background: #ef4444;
+        }
+
+        #clearAll:hover {
+            background: #dc2626;
+        }
+
+        .fetch-button {
+            background: #10b981;
+        }
+
+        .fetch-button:hover {
+            background: #059669;
+        }
+
+        .date-input-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .date-input {
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .message {
+            text-align: center;
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c00;
+            border: 1px solid #fcc;
+        }
+
+        .success-message {
+            background: #efe;
+            color: #060;
+            border: 1px solid #cfc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧩 Connections Puzzle Solver</h1>
+        
+        <div class="input-section">
+            <h3 style="margin-bottom: 15px; color: #2d3748;">Enter 16 Words or Fetch a Puzzle</h3>
+            
+            <div class="date-input-group">
+                <label for="puzzleDate" style="color: #4a5568;">Select Date:</label>
+                <input type="date" id="puzzleDate" class="date-input">
+                <button class="fetch-button" onclick="fetchPuzzle()">
+                    <span id="fetchBtnText">Fetch Puzzle</span>
+                </button>
+            </div>
+            
+            <div id="message"></div>
+            
+            <div class="input-grid">
+                <input type="text" class="word-input" placeholder="Word 1">
+                <input type="text" class="word-input" placeholder="Word 2">
+                <input type="text" class="word-input" placeholder="Word 3">
+                <input type="text" class="word-input" placeholder="Word 4">
+                <input type="text" class="word-input" placeholder="Word 5">
+                <input type="text" class="word-input" placeholder="Word 6">
+                <input type="text" class="word-input" placeholder="Word 7">
+                <input type="text" class="word-input" placeholder="Word 8">
+                <input type="text" class="word-input" placeholder="Word 9">
+                <input type="text" class="word-input" placeholder="Word 10">
+                <input type="text" class="word-input" placeholder="Word 11">
+                <input type="text" class="word-input" placeholder="Word 12">
+                <input type="text" class="word-input" placeholder="Word 13">
+                <input type="text" class="word-input" placeholder="Word 14">
+                <input type="text" class="word-input" placeholder="Word 15">
+                <input type="text" class="word-input" placeholder="Word 16">
+            </div>
+            <div class="button-group">
+                <button onclick="startPuzzle()">Start Puzzle</button>
+                <button onclick="clearInputs()">Clear All</button>
+            </div>
+        </div>
+
+        <div class="puzzle-area">
+            <div class="word-pool">
+                <div class="pool-title">Word Pool - Drag words to groups below</div>
+                <div class="words-container" id="wordPool"></div>
+            </div>
+
+            <div class="groups-container">
+                <div class="group-box" data-group="1">
+                    <div class="group-header">
+                        <div class="group-title">Group 1</div>
+                        <div class="group-controls">
+                            <button class="color-btn yellow" onclick="setGroupColor(1, 'yellow')" title="Yellow"></button>
+                            <button class="color-btn green" onclick="setGroupColor(1, 'green')" title="Green"></button>
+                            <button class="color-btn blue" onclick="setGroupColor(1, 'blue')" title="Blue"></button>
+                            <button class="color-btn purple" onclick="setGroupColor(1, 'purple')" title="Purple"></button>
+                            <button class="lock-btn" onclick="toggleLock(1)">Lock</button>
+                        </div>
+                    </div>
+                    <div class="words-container"></div>
+                </div>
+                <div class="group-box" data-group="2">
+                    <div class="group-header">
+                        <div class="group-title">Group 2</div>
+                        <div class="group-controls">
+                            <button class="color-btn yellow" onclick="setGroupColor(2, 'yellow')" title="Yellow"></button>
+                            <button class="color-btn green" onclick="setGroupColor(2, 'green')" title="Green"></button>
+                            <button class="color-btn blue" onclick="setGroupColor(2, 'blue')" title="Blue"></button>
+                            <button class="color-btn purple" onclick="setGroupColor(2, 'purple')" title="Purple"></button>
+                            <button class="lock-btn" onclick="toggleLock(2)">Lock</button>
+                        </div>
+                    </div>
+                    <div class="words-container"></div>
+                </div>
+                <div class="group-box" data-group="3">
+                    <div class="group-header">
+                        <div class="group-title">Group 3</div>
+                        <div class="group-controls">
+                            <button class="color-btn yellow" onclick="setGroupColor(3, 'yellow')" title="Yellow"></button>
+                            <button class="color-btn green" onclick="setGroupColor(3, 'green')" title="Green"></button>
+                            <button class="color-btn blue" onclick="setGroupColor(3, 'blue')" title="Blue"></button>
+                            <button class="color-btn purple" onclick="setGroupColor(3, 'purple')" title="Purple"></button>
+                            <button class="lock-btn" onclick="toggleLock(3)">Lock</button>
+                        </div>
+                    </div>
+                    <div class="words-container"></div>
+                </div>
+                <div class="group-box" data-group="4">
+                    <div class="group-header">
+                        <div class="group-title">Group 4</div>
+                        <div class="group-controls">
+                            <button class="color-btn yellow" onclick="setGroupColor(4, 'yellow')" title="Yellow"></button>
+                            <button class="color-btn green" onclick="setGroupColor(4, 'green')" title="Green"></button>
+                            <button class="color-btn blue" onclick="setGroupColor(4, 'blue')" title="Blue"></button>
+                            <button class="color-btn purple" onclick="setGroupColor(4, 'purple')" title="Purple"></button>
+                            <button class="lock-btn" onclick="toggleLock(4)">Lock</button>
+                        </div>
+                    </div>
+                    <div class="words-container"></div>
+                </div>
+            </div>
+
+            <div class="extra-groups">
+                <div class="extra-group" data-group="5">
+                    <div class="group-title">Extra Group 1 (Maybe pile)</div>
+                    <div class="words-container"></div>
+                </div>
+                <div class="extra-group" data-group="6">
+                    <div class="group-title">Extra Group 2 (Thinking space)</div>
+                    <div class="words-container"></div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="clearAll" onclick="clearAllGroups()">Clear All Groups</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let draggedElement = null;
+        let groupColors = {};
+        let lockedGroups = new Set();
+
+        // Set today's date as default
+        document.getElementById('puzzleDate').value = new Date().toISOString().split('T')[0];
+
+        async function fetchPuzzle() {
+            const dateInput = document.getElementById('puzzleDate').value;
+            if (!dateInput) {
+                showMessage('Please select a date', 'error');
+                return;
+            }
+
+            const btnText = document.getElementById('fetchBtnText');
+            const originalText = btnText.textContent;
+            btnText.innerHTML = '<span class="loading"></span>';
+            
+            try {
+                const response = await fetch(`/api/puzzle/${dateInput}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Fill input fields with shuffled words
+                    const inputs = document.querySelectorAll('.word-input');
+                    data.words.forEach((word, index) => {
+                        if (inputs[index]) {
+                            inputs[index].value = word;
+                        }
+                    });
+                    
+                    showMessage(`Puzzle #${data.puzzle_id} loaded successfully! (${dateInput})`, 'success');
+                } else {
+                    throw new Error(data.error || 'Failed to fetch puzzle');
+                }
+            } catch (error) {
+                showMessage(error.message || 'Failed to fetch puzzle. Please try again.', 'error');
+                console.error('Fetch error:', error);
+            } finally {
+                btnText.textContent = originalText;
+            }
+        }
+
+        function showMessage(text, type = 'info') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = type === 'error' ? 'message error-message' : 'message success-message';
+            
+            // Auto-clear message after 5 seconds
+            setTimeout(() => {
+                messageDiv.textContent = '';
+                messageDiv.className = '';
+            }, 5000);
+        }
+
+        function clearInputs() {
+            document.querySelectorAll('.word-input').forEach(input => {
+                input.value = '';
+            });
+        }
+
+        function startPuzzle() {
+            const inputs = document.querySelectorAll('.word-input');
+            const words = [];
+            
+            inputs.forEach(input => {
+                if (input.value.trim()) {
+                    words.push(input.value.trim().toUpperCase());
+                }
+            });
+
+            if (words.length !== 16) {
+                alert('Please enter exactly 16 words to start the puzzle!');
+                return;
+            }
+
+            // Reset groups
+            groupColors = {};
+            lockedGroups.clear();
+            document.querySelectorAll('.group-box').forEach(box => {
+                box.className = 'group-box';
+                box.setAttribute('data-group', box.getAttribute('data-group'));
+                const lockBtn = box.querySelector('.lock-btn');
+                if (lockBtn) {
+                    lockBtn.textContent = 'Lock';
+                    lockBtn.classList.remove('locked');
+                }
+            });
+
+            // Clear all color button active states
+            document.querySelectorAll('.color-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Clear and populate word pool
+            const wordPool = document.getElementById('wordPool');
+            wordPool.innerHTML = '';
+            
+            words.forEach(word => {
+                const wordCard = createWordCard(word);
+                wordPool.appendChild(wordCard);
+            });
+
+            // Show puzzle area
+            document.querySelector('.puzzle-area').classList.add('active');
+            
+            // Scroll to puzzle
+            document.querySelector('.puzzle-area').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function createWordCard(word) {
+            const card = document.createElement('div');
+            card.className = 'word-card';
+            card.textContent = word;
+            card.draggable = true;
+            
+            card.addEventListener('dragstart', handleDragStart);
+            card.addEventListener('dragend', handleDragEnd);
+            
+            return card;
+        }
+
+        function handleDragStart(e) {
+            // Check if parent group is locked
+            const groupBox = e.target.closest('.group-box');
+            if (groupBox && lockedGroups.has(parseInt(groupBox.dataset.group))) {
+                e.preventDefault();
+                return;
+            }
+            
+            draggedElement = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+        }
+
+        // Set up drop zones
+        document.querySelectorAll('.words-container').forEach(container => {
+            container.addEventListener('dragover', handleDragOver);
+            container.addEventListener('drop', handleDrop);
+            container.addEventListener('dragleave', handleDragLeave);
+            container.addEventListener('dragenter', handleDragEnter);
+        });
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            
+            // Check if target group is locked
+            const groupBox = e.target.closest('.group-box');
+            if (groupBox && lockedGroups.has(parseInt(groupBox.dataset.group))) {
+                e.dataTransfer.dropEffect = 'none';
+                return;
+            }
+            
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDragEnter(e) {
+            const groupBox = e.target.closest('.group-box, .extra-group, .word-pool');
+            if (groupBox && !groupBox.classList.contains('word-pool')) {
+                // Don't highlight locked groups
+                if (groupBox.classList.contains('group-box') && 
+                    lockedGroups.has(parseInt(groupBox.dataset.group))) {
+                    return;
+                }
+                groupBox.classList.add('dragover');
+            }
+        }
+
+        function handleDragLeave(e) {
+            const groupBox = e.target.closest('.group-box, .extra-group');
+            if (groupBox && !groupBox.contains(e.relatedTarget)) {
+                groupBox.classList.remove('dragover');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            
+            const groupBox = e.target.closest('.group-box');
+            if (groupBox && lockedGroups.has(parseInt(groupBox.dataset.group))) {
+                return;
+            }
+            
+            const container = e.target.closest('.words-container');
+            
+            if (container && draggedElement) {
+                container.appendChild(draggedElement);
+                draggedElement = null;
+            }
+            
+            const anyGroupBox = e.target.closest('.group-box, .extra-group, .word-pool');
+            if (anyGroupBox) {
+                anyGroupBox.classList.remove('dragover');
+            }
+        }
+
+        function setGroupColor(groupNum, color) {
+            const groupBox = document.querySelector(`.group-box[data-group="${groupNum}"]`);
+            
+            // Remove all color classes
+            groupBox.classList.remove('yellow', 'green', 'blue', 'purple');
+            
+            // Clear active state from all color buttons in this group
+            groupBox.querySelectorAll('.color-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // If clicking the same color, remove it
+            if (groupColors[groupNum] === color) {
+                delete groupColors[groupNum];
+            } else {
+                // Add new color
+                groupBox.classList.add(color);
+                groupColors[groupNum] = color;
+                
+                // Mark the button as active
+                groupBox.querySelector(`.color-btn.${color}`).classList.add('active');
+            }
+        }
+
+        function toggleLock(groupNum) {
+            const groupBox = document.querySelector(`.group-box[data-group="${groupNum}"]`);
+            const lockBtn = groupBox.querySelector('.lock-btn');
+            
+            if (lockedGroups.has(groupNum)) {
+                lockedGroups.delete(groupNum);
+                groupBox.classList.remove('locked');
+                lockBtn.textContent = 'Lock';
+                lockBtn.classList.remove('locked');
+                
+                // Re-enable dragging for cards in this group
+                groupBox.querySelectorAll('.word-card').forEach(card => {
+                    card.draggable = true;
+                });
+            } else {
+                lockedGroups.add(groupNum);
+                groupBox.classList.add('locked');
+                lockBtn.textContent = 'Unlock';
+                lockBtn.classList.add('locked');
+                
+                // Disable dragging for cards in this group
+                groupBox.querySelectorAll('.word-card').forEach(card => {
+                    card.draggable = false;
+                });
+            }
+        }
+
+        function clearAllGroups() {
+            const wordPool = document.getElementById('wordPool');
+            const allWords = document.querySelectorAll('.group-box .word-card, .extra-group .word-card');
+            
+            allWords.forEach(word => {
+                // Only move unlocked words
+                const groupBox = word.closest('.group-box');
+                if (!groupBox || !lockedGroups.has(parseInt(groupBox.dataset.group))) {
+                    word.draggable = true;
+                    wordPool.appendChild(word);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
