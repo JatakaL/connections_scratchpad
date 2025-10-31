@@ -28,19 +28,31 @@ def get_puzzle(date):
         data = response.json()
         
         if data.get('status') == 'OK' and data.get('categories'):
-            # Extract words without revealing categories
-            words = []
+            # Extract words/images without revealing categories
+            items = []
             for category in data['categories']:
                 for card in category['cards']:
-                    words.append(card['content'])
-            
+                    if 'content' in card:
+                        # Regular text puzzle
+                        items.append({
+                            'type': 'text',
+                            'content': card['content']
+                        })
+                    elif 'image_url' in card:
+                        # Image puzzle
+                        items.append({
+                            'type': 'image',
+                            'url': card['image_url'],
+                            'alt': card['image_alt_text']
+                        })
+
             # Shuffle to avoid spoilers
-            random.shuffle(words)
+            random.shuffle(items)
             
             return jsonify({
                 'success': True,
                 'date': date,
-                'words': words,
+                'items': items,
                 'puzzle_id': data.get('id'),
                 'editor': data.get('editor')
             })

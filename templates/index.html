@@ -134,6 +134,14 @@
             font-weight: 500;
             transition: all 0.2s;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 80px;
+        }
+
+        .word-card img {
+            pointer-events: none; /* Prevent image from interfering with drag */
         }
 
         .word-card:hover {
@@ -503,9 +511,13 @@
                 if (response.ok) {
                     // Fill input fields with shuffled words
                     const inputs = document.querySelectorAll('.word-input');
-                    data.words.forEach((word, index) => {
+
+                    // Store the items globally for later use
+                    window.puzzleItems = data.items;
+
+                    data.items.forEach((item, index) => {
                         if (inputs[index]) {
-                            inputs[index].value = word;
+                            inputs[index].value = item.type === 'text' ? item.content : item.alt;
                         }
                     });
                     
@@ -591,12 +603,34 @@
         function createWordCard(word) {
             const card = document.createElement('div');
             card.className = 'word-card';
-            card.textContent = word;
             card.draggable = true;
             
+            // Check if we have puzzle items and this word matches one
+            if (window.puzzleItems) {
+                const item = window.puzzleItems.find(i => 
+                    (i.type === 'text' && i.content === word) ||
+                    (i.type === 'image' && i.alt === word)
+                );
+
+                if (item && item.type === 'image') {
+                    // Create image element
+                    const img = document.createElement('img');
+                    img.src = item.url;
+                    img.alt = item.alt;
+                    img.style.maxWidth = '100%';
+                    img.style.height = 'auto';
+                    img.title = item.alt; // Show alt text on hover
+                    card.appendChild(img);
+                } else {
+                    card.textContent = word;
+                }
+            } else {
+                card.textContent = word;
+            }
+
             card.addEventListener('dragstart', handleDragStart);
             card.addEventListener('dragend', handleDragEnd);
-            
+
             return card;
         }
 
